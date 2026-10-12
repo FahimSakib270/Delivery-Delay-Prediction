@@ -6,7 +6,7 @@ The sequence implemented here is deliberately constrained:
    (never a shuffled K-fold, which would let a model train on the future);
 2. the model is compared on the **validation period** using average precision;
 3. the decision threshold is chosen on the validation period and then **frozen**;
-4. the test period is scored **once**, after all decisions are made.
+4. the test period is evaluated only after model and threshold decisions are frozen.
 
 Model artefacts, the comparison table, the frozen threshold and the run manifest land in
 ``models/`` and ``reports/`` so that ``python -m src.evaluate`` and the Streamlit app can
@@ -25,9 +25,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, cross_val_score
+from sklearn.model_selection import GridSearchCV, cross_val_score
 
-from .config import load_config, resolve
+from .config import load_config, resolve, ROOT_DIR
 from .data_prep import MODEL_FEATURES, TARGET_COLUMN, load_processed
 from .evaluation import (
     calibration_table,
@@ -38,7 +38,7 @@ from .evaluation import (
     select_threshold,
 )
 from .features import build_model_pipeline, model_param_grid, transformed_feature_names
-from .splitting import split_and_filter
+from .splitting import split_and_filter, mature_cv_splits
 from .utils import environment_info, ensure_dir, file_sha256, get_logger, save_json, set_seed, Timer
 
 logger = get_logger("training")
@@ -63,11 +63,12 @@ def tune_model(
     cfg: Dict[str, Any],
     cv_splits: int = 3,
     seed: Optional[int] = None,
+    chronology: Optional[pd.DataFrame] = None,
 ) -> Tuple[Any, Dict[str, Any]]:
     """Tune one candidate inside the training period and return ``(pipeline, info)``.
 
-    ``TimeSeriesSplit`` is used so that every CV fold trains on the past and validates
-    on the immediately following stretch of time, exactly like the outer split. With
+    Label-aware expanding folds keep booking instants together and require every
+    training delivery to precede the fold validation start. With
     the configured search spaces this is at most 3 x 4 forest fits, which is what
     keeps the experiment laptop-sized.
     """
@@ -75,7 +76,11 @@ def tune_model(
     grid = model_param_grid(cfg, model_name)
     pipeline = build_model_pipeline(model_name, cfg, seed=seed)
 
-    info: Dict[str, Any] = {"model": model_name, "grid": grid, "cv_splits": int(cv_splits)}
+    if chronology is None or len(chronology) != len(X):
+        raise ValueError("pass aligned booking/delivery chronology for label-aware CV")
+    folds, fold_audit = mature_cv_splits(chronology, n_splits=int(cv_splits))
+    info: Dict[str, Any] = {"model": model_name, "grid": grid,
+                           "cv_splits": int(cv_splits), "cv_fold_audit": fold_audit}
     with Timer() as timer:
         if not grid:
             pipeline.fit(X, y)
@@ -90,7 +95,7 @@ def tune_model(
                 fold_scores = cross_val_score(
                     pipeline, X, y,
                     scoring=SEARCH_SCORING,
-                    cv=TimeSeriesSplit(n_splits=int(cv_splits)),
+                    cv=folds,
                     error_score=float("nan"),
                 )
                 info["cv_scores"] = [float(s) for s in fold_scores]
@@ -102,7 +107,7 @@ def tune_model(
                 pipeline,
                 param_grid=grid,
                 scoring=SEARCH_SCORING,
-                cv=TimeSeriesSplit(n_splits=int(cv_splits)),
+                cv=folds,
                 refit=True,
                 n_jobs=_search_n_jobs(model_name),
                 error_score=float("nan"),
@@ -140,10 +145,11 @@ def fit_candidates(
     rows: List[Dict[str, Any]] = []
 
     for name in CANDIDATE_MODELS:
-        pipeline, model_info = tune_model(name, X_train, y_train, cfg, cv_splits=cv_splits, seed=seed)
+        pipeline, model_info = tune_model(name, X_train, y_train, cfg,
+                                         cv_splits=cv_splits, seed=seed, chronology=train)
         fitted[name] = pipeline
         info[name] = model_info
-        for split_name in ("train", "validation", "test"):
+        for split_name in ("train", "validation"):
             frame = frames[split_name]
             probabilities = predict_positive_proba(pipeline, frame[MODEL_FEATURES])
             panel = compute_metrics(frame[TARGET_COLUMN], probabilities, threshold=0.5)
@@ -159,9 +165,9 @@ def select_best_model(
 ) -> str:
     """Pick the model with the best **validation** average precision.
 
-    Average precision (PR-AUC) is the selection metric because delays are a minority
-    class: it depends only on how well the delayed orders are ranked, whereas ROC-AUC
-    would be inflated by the many easy on-time orders. Brier score breaks ties towards
+    Average precision is the selection metric because delays are a minority
+    class: it describes precision-recall ranking at the observed prevalence.
+    ROC-AUC alone does not describe operational precision. Brier score breaks ties towards
     the better-calibrated model.
     """
     validation = comparison.loc[comparison["split"] == "validation"].copy()
@@ -198,7 +204,7 @@ def train_and_evaluate(
     cv_splits: int = 3,
     persist: bool = True,
 ) -> Dict[str, Any]:
-    """Run selection -> threshold freezing -> a single scoring of the test period."""
+    """Run selection -> threshold freezing -> retrospective test evaluation."""
     cfg = cfg or load_config()
     seed = int(cfg["project"]["random_seed"])
     set_seed(seed)
@@ -238,10 +244,17 @@ def train_and_evaluate(
         cost_false_positive=float(cost_cfg["cost_false_positive"]),
     )
 
-    # ---- the test period is scored exactly once, with everything frozen --------
+    # ---- primary test evaluation, with selection decisions frozen ------------
     test = frames["test"]
     test_metrics, test_prob = evaluate_split(best, test, MODEL_FEATURES, threshold)
     test_metrics_at_half = compute_metrics(test[TARGET_COLUMN], test_prob, threshold=0.5)
+    # Candidate test diagnostics happen only after model and thresholds are frozen.
+    # No selection function consumes these rows.
+    comparison = pd.concat([comparison, pd.DataFrame([
+        {"model": name, "split": "test", **compute_metrics(
+            test[TARGET_COLUMN], predict_positive_proba(pipeline, test[MODEL_FEATURES]), 0.5
+        )} for name, pipeline in fitted.items()
+    ])], ignore_index=True)
     logger.info("TEST  AP=%.4f  ROC-AUC=%.4f  P=%.4f  R=%.4f  F1=%.4f  (threshold=%.4f)",
                 test_metrics["average_precision"], test_metrics["roc_auc"],
                 test_metrics["precision"], test_metrics["recall"], test_metrics["f1"], threshold)
@@ -251,6 +264,9 @@ def train_and_evaluate(
     predictions["probability"] = test_prob
     predictions["prediction"] = (test_prob >= threshold).astype(int)
     predictions["split"] = "test"
+    validation_predictions = validation.copy()
+    validation_predictions["probability"] = validation_prob
+    validation_predictions["split"] = "validation"
 
     model_path = models_dir / "best_model.joblib"
     bundle = {
@@ -262,6 +278,10 @@ def train_and_evaluate(
         "training_rows": int(len(frames["train"])),
         "dataset_sha256": file_sha256(resolve(cfg, "paths", "processed_dir") / "orders_prepared.csv"),
         "label_definition": str(cfg["label"]["primary"]),
+        "score_kind": "uncalibrated_risk_score",
+        "data_source_kind": cfg["data_source"]["mode"],
+        "split_info": split_info,
+        "experiment_protocol": "label-aware-cv-v2",
     }
     if persist:
         joblib.dump(bundle, model_path)
@@ -291,6 +311,8 @@ def train_and_evaluate(
         cost_curve_table.to_csv(reports_dir / "validation_cost_curve.csv", index=False)
         calibration.to_csv(reports_dir / "test_calibration.csv", index=False)
         predictions.to_csv(reports_dir / "test_predictions.csv", index=False)
+        validation_predictions.to_csv(reports_dir / "validation_predictions.csv", index=False)
+        frames["train"][MODEL_FEATURES].to_csv(models_dir / "training_inputs.csv", index=False)
         save_json(results["search_info"], reports_dir / "hyperparameter_search.json")
         save_json(_manifest(cfg, results, model_path, persist), reports_dir / "run_manifest.json")
         logger.info("artefacts written to %s and %s", models_dir, reports_dir)
@@ -317,14 +339,21 @@ def _manifest(
     """Everything needed to reproduce (or interrogate) this run."""
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "experiment_protocol": "label-aware-cv-v2",
         "git_commit": _git_commit(),
+        "source_sha256": {
+            str(path.relative_to(ROOT_DIR)): file_sha256(path)
+            for directory, pattern in (("src", "*.py"), ("app", "*.py"), ("config", "*.yaml"))
+            for path in sorted((ROOT_DIR / directory).glob(pattern))
+        },
         "python": sys.version,
         "platform": platform.platform(),
         "environment": environment_info(),
         "config": cfg,
         "model": {
             "name": results["model_name"],
-            "path": str(model_path) if persist else None,
+            "path": str(model_path.relative_to(ROOT_DIR)) if persist and model_path.is_relative_to(ROOT_DIR)
+                    else str(model_path) if persist else None,
             "sha256": file_sha256(model_path) if persist else None,
             "threshold": results["threshold"],
             "threshold_selection": results["threshold_info"],
@@ -343,7 +372,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI: ``python -m src.train``."""
     parser = argparse.ArgumentParser(
         prog="python -m src.train",
-        description="Tune the candidates, freeze a threshold, score the test period once.",
+        description="Tune the candidates, freeze a threshold, evaluate the test period after selection.",
     )
     parser.add_argument("--config", default=None, help="Alternative YAML config path.")
     parser.add_argument("--cv-splits", type=int, default=3,

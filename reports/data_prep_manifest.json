@@ -2,7 +2,7 @@
   "provenance": {
     "data_source_kind": "olist",
     "synthetic": false,
-    "raw_dir": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\raw\\olist",
+    "raw_dir": "/workspace/scratch/eb5bc84db885/Delivery-Delay-Prediction/data/raw/olist",
     "raw_file_sha256": {
       "orders": "8df58ef3d2d7e9944010f7beecd9b75367f5588ec6e3c91cec19ae3345ef9ecf",
       "items": "0bc4d068c4fe38cbb01bd90e8746e3c613fe7b4baef75fab7b0e329701c3e279",
@@ -12,13 +12,13 @@
       "payments": "4f713964f2815dbbaa40b9488268c55aac3627bfce5aa96cf58d1f3616de3cc0",
       "translation": "a81f0d1f27b27e7293f761bc79e3ce8f348ee39c4b3ed3e49bde38f478586278"
     },
-    "processed_sha256": "0ed4ff8f1c6854d0b10c9624731acf860d2761ebd51b751623b025da65687dcd",
+    "processed_sha256": "2b97595398cdab350f46d2eca80d4c0a31c78c73a8be004bd56de5405e7c431b",
     "dataset_fingerprint": "e12d3971ee312a44ad3103a252e91ea79fc65b51137be2bc712518937ea2ab0a"
   },
   "config": {
     "project": {
       "name": "ProFast Delivery Delay Prediction",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "random_seed": 42
     },
     "paths": {
@@ -30,7 +30,7 @@
       "figures_dir": "reports/figures"
     },
     "data_source": {
-      "mode": "auto",
+      "mode": "olist",
       "olist_dir": "data/raw/olist",
       "synthetic_n_orders": 60000,
       "synthetic_seed": 20240101
@@ -97,7 +97,7 @@
   },
   "statistics": {
     "data_source_kind": "olist",
-    "raw_dir": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\raw\\olist",
+    "raw_dir": "/workspace/scratch/eb5bc84db885/Delivery-Delay-Prediction/data/raw/olist",
     "raw_file_sha256": {
       "orders": "8df58ef3d2d7e9944010f7beecd9b75367f5588ec6e3c91cec19ae3345ef9ecf",
       "items": "0bc4d068c4fe38cbb01bd90e8746e3c613fe7b4baef75fab7b0e329701c3e279",
@@ -273,7 +273,7 @@
       "n": 96470
     },
     "synthetic": false,
-    "processed_path": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\processed\\orders_prepared.csv",
-    "processed_sha256": "0ed4ff8f1c6854d0b10c9624731acf860d2761ebd51b751623b025da65687dcd"
+    "processed_path": "/workspace/scratch/eb5bc84db885/Delivery-Delay-Prediction/data/processed/orders_prepared.csv",
+    "processed_sha256": "2b97595398cdab350f46d2eca80d4c0a31c78c73a8be004bd56de5405e7c431b"
   }
 }

@@ -1,0 +1,8 @@
+# Explicit software demonstration: not evidence of real delivery performance.
+data_source:
+  mode: synthetic
+paths:
+  processed_dir: demo/data/processed
+  models_dir: demo/models
+  reports_dir: demo/reports
+  figures_dir: demo/reports/figures

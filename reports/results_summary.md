@@ -9,36 +9,36 @@
 
 | metric | value | 95% bootstrap interval |
 | --- | --- | --- |
-| average_precision | 0.0711 | [0.0619, 0.0829] |
-| roc_auc | 0.6475 | [0.6276, 0.6652] |
+| average_precision | 0.0711 | [0.0619, 0.0832] |
+| roc_auc | 0.6475 | [0.6277, 0.6653] |
 | precision | 0.0625 | [0.0546, 0.0710] |
 | recall | 0.3500 | [0.3120, 0.3895] |
 | f1 | 0.1061 | [0.0931, 0.1193] |
-| brier | 0.2847 | [0.2821, 0.2871] |
+| brier | 0.2846 | [0.2820, 0.2870] |
 | accuracy | 0.7472 | [nan, nan] |
 
 ## Candidate comparison (average precision per split)
 
 | model | train | validation | test |
 | --- | --- | --- | --- |
-| dummy | 0.0681 | 0.0423 | 0.0428 |
+| dummy | 0.0681 | 0.0428 | 0.0428 |
 | logistic_regression | 0.1502 | 0.1126 | 0.0711 |
-| random_forest | 0.3411 | 0.1025 | 0.0430 |
+| random_forest | 0.3132 | 0.1063 | 0.0470 |
 
 ## Error cost (assumptions live in config: `business_case`)
 
 * a missed delay is assumed to cost 25, a false alarm 4
-* at the frozen threshold: 1595.95 per 1 000 orders (threshold 0.5: 2317.81; flagging nothing: 1071.11)
+* at the frozen threshold: 1595.95 per 1 000 orders (threshold 0.5: 2316.36; flagging nothing: 1071.11)
 
 ## Weakest large segments (recall at the frozen threshold)
 
 | dimension | level | n | recall | precision |
 | --- | --- | --- | --- | --- |
 | customer_state | PR | 743 | 0.0625 | 0.0127 |
-| customer_state | SP | 6,750 | 0.1542 | 0.1422 |
-| route_bucket | same-state seller | 5,925 | 0.1762 | 0.1889 |
-| items_bucket | 2+ items | 1,328 | 0.1944 | 0.0308 |
-| customer_state | MG | 1,581 | 0.2000 | 0.0241 |
+| customer_state | SP | 6,750 | 0.1542 | 0.1415 |
+| route_bucket | same-state seller | 5,925 | 0.1762 | 0.1878 |
+| items_bucket | 2+ items | 1,328 | 0.1944 | 0.0307 |
+| customer_state | MG | 1,581 | 0.2000 | 0.0240 |
 | product_category | stationery | 358 | 0.2222 | 0.0513 |
 | month_bucket | 6 | 1,964 | 0.2632 | 0.0289 |
 | lead_time_bucket | <=7 days | 1,260 | 0.2676 | 0.2192 |
@@ -48,10 +48,10 @@
 | feature | mean drop in average precision | std |
 | --- | --- | --- |
 | lead_time_days | 0.0315 | 0.0010 |
-| seller_state | 0.0031 | 0.0004 |
+| seller_state | 0.0031 | 0.0003 |
 | customer_state | 0.0028 | 0.0020 |
-| mean_weight_g | 0.0014 | 0.0008 |
-| freight_ratio | 0.0009 | 0.0002 |
+| mean_weight_g | 0.0015 | 0.0008 |
+| freight_ratio | 0.0010 | 0.0002 |
 | n_sellers | 0.0008 | 0.0004 |
-| total_weight_g | 0.0005 | 0.0002 |
-| n_items | 0.0005 | 0.0003 |
+| total_weight_g | 0.0006 | 0.0002 |
+| order_value | 0.0005 | 0.0002 |

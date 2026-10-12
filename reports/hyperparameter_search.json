@@ -3,16 +3,48 @@
     "model": "dummy",
     "grid": {},
     "cv_splits": 3,
+    "cv_fold_audit": [
+      {
+        "fold": 1,
+        "validation_start": "2017-07-16T22:27:15",
+        "train_rows_before_maturity": 16086,
+        "train_rows": 14567,
+        "validation_rows": 16095,
+        "dropped_immature": 1519,
+        "latest_training_delivery": "2017-07-16T13:44:52",
+        "latest_training_booking": "2017-07-13T11:24:43"
+      },
+      {
+        "fold": 2,
+        "validation_start": "2017-11-09T23:46:32",
+        "train_rows_before_maturity": 32181,
+        "train_rows": 30535,
+        "validation_rows": 16131,
+        "dropped_immature": 1646,
+        "latest_training_delivery": "2017-11-09T23:36:49",
+        "latest_training_booking": "2017-11-08T11:56:28"
+      },
+      {
+        "fold": 3,
+        "validation_start": "2018-01-21T11:47:02",
+        "train_rows_before_maturity": 48312,
+        "train_rows": 45083,
+        "validation_rows": 16117,
+        "dropped_immature": 3229,
+        "latest_training_delivery": "2018-01-21T11:22:52",
+        "latest_training_booking": "2018-01-18T23:16:10"
+      }
+    ],
     "best_params": {
       "strategy": "most_frequent"
     },
     "cv_scores": [
-      0.03737505432420687,
-      0.09076798907307382,
-      0.10740671757620911
+      0.037340789064926994,
+      0.09075692765482611,
+      0.10734007569646957
     ],
-    "best_cv_score": 0.07851658699116326,
-    "seconds": 1.83
+    "best_cv_score": 0.0784792641387409,
+    "seconds": 0.86
   },
   "logistic_regression": {
     "model": "logistic_regression",
@@ -23,11 +55,43 @@
       ]
     },
     "cv_splits": 3,
+    "cv_fold_audit": [
+      {
+        "fold": 1,
+        "validation_start": "2017-07-16T22:27:15",
+        "train_rows_before_maturity": 16086,
+        "train_rows": 14567,
+        "validation_rows": 16095,
+        "dropped_immature": 1519,
+        "latest_training_delivery": "2017-07-16T13:44:52",
+        "latest_training_booking": "2017-07-13T11:24:43"
+      },
+      {
+        "fold": 2,
+        "validation_start": "2017-11-09T23:46:32",
+        "train_rows_before_maturity": 32181,
+        "train_rows": 30535,
+        "validation_rows": 16131,
+        "dropped_immature": 1646,
+        "latest_training_delivery": "2017-11-09T23:36:49",
+        "latest_training_booking": "2017-11-08T11:56:28"
+      },
+      {
+        "fold": 3,
+        "validation_start": "2018-01-21T11:47:02",
+        "train_rows_before_maturity": 48312,
+        "train_rows": 45083,
+        "validation_rows": 16117,
+        "dropped_immature": 3229,
+        "latest_training_delivery": "2018-01-21T11:22:52",
+        "latest_training_booking": "2018-01-18T23:16:10"
+      }
+    ],
     "best_params": {
       "model__C": 0.1
     },
-    "best_cv_score": 0.13548883946640708,
-    "seconds": 11.76
+    "best_cv_score": 0.11864229430107724,
+    "seconds": 2.86
   },
   "random_forest": {
     "model": "random_forest",
@@ -42,11 +106,43 @@
       ]
     },
     "cv_splits": 3,
+    "cv_fold_audit": [
+      {
+        "fold": 1,
+        "validation_start": "2017-07-16T22:27:15",
+        "train_rows_before_maturity": 16086,
+        "train_rows": 14567,
+        "validation_rows": 16095,
+        "dropped_immature": 1519,
+        "latest_training_delivery": "2017-07-16T13:44:52",
+        "latest_training_booking": "2017-07-13T11:24:43"
+      },
+      {
+        "fold": 2,
+        "validation_start": "2017-11-09T23:46:32",
+        "train_rows_before_maturity": 32181,
+        "train_rows": 30535,
+        "validation_rows": 16131,
+        "dropped_immature": 1646,
+        "latest_training_delivery": "2017-11-09T23:36:49",
+        "latest_training_booking": "2017-11-08T11:56:28"
+      },
+      {
+        "fold": 3,
+        "validation_start": "2018-01-21T11:47:02",
+        "train_rows_before_maturity": 48312,
+        "train_rows": 45083,
+        "validation_rows": 16117,
+        "dropped_immature": 3229,
+        "latest_training_delivery": "2018-01-21T11:22:52",
+        "latest_training_booking": "2018-01-18T23:16:10"
+      }
+    ],
     "best_params": {
       "model__max_depth": 12,
-      "model__min_samples_leaf": 1
+      "model__min_samples_leaf": 5
     },
-    "best_cv_score": 0.14814256665767137,
-    "seconds": 333.19
+    "best_cv_score": 0.10820921810518923,
+    "seconds": 61.74
   }
 }

@@ -8,7 +8,7 @@
 
 project:
   name: "ProFast Delivery Delay Prediction"
-  version: "1.0.0"
+  version: "1.1.0"
   random_seed: 42
 
 paths:
@@ -23,7 +23,7 @@ data_source:
   # "auto"      -> use real Olist CSVs if they exist, otherwise synthetic data
   # "olist"     -> require real Olist CSVs (fail loudly if missing)
   # "synthetic" -> always use the generated demonstration dataset
-  mode: "auto"
+  mode: "olist"
   olist_dir: "data/raw/olist"
   synthetic_n_orders: 60000
   synthetic_seed: 20240101
@@ -96,3 +96,8 @@ business_case:
 evaluation:
   bootstrap_n: 500          # bootstrap resamples for the test-metric confidence interval
   subgroups_min_n: 100      # minimum subgroup size before a subgroup claim is made
+
+exploratory:
+  # Retrospective diagnostics: these values are not optimized on the test set.
+  promise_rule_days: 7
+  top_up_budgets: [0.12, 0.16, 0.20]

@@ -40,3 +40,6 @@ _*.py
 _*.ps1
 _*.json
 nul
+
+# Isolated synthetic demonstration outputs
+demo/
