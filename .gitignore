@@ -1,0 +1,42 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+
+# ---- Raw datasets (NOT committed: licence + size) ----
+# Regenerate with: python -m src.prepare --force-synthetic
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/README.md
+
+# ---- Large generated artefacts ----
+# Regenerate with: python -m src.prepare && python -m src.train && python -m src.evaluate
+data/processed/*
+!data/processed/.gitkeep
+models/*
+!models/.gitkeep
+
+# ---- Local scratch ----
+*.log
+*.zip
+tmp/
+scratch/
+_probe.txt
+_env_probe.txt
+_p*.txt
+_q*.txt
+_r*.txt
+# Every ad-hoc file this project's development wrote into the repository root starts
+# with an underscore; none of them is an input to the pipeline.
+_*.txt
+_*.py
+_*.ps1
+_*.json
+nul

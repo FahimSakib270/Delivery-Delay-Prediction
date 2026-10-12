@@ -1,0 +1,98 @@
+# =============================================================================
+# ProFast Delivery Delay Prediction - experiment configuration
+# -----------------------------------------------------------------------------
+# Every modelling choice that a reader might want to question lives here rather
+# than being hard-coded inside a script. The scripts write the *resolved* copy of
+# this file into reports/run_manifest.json so a run is always reproducible.
+# =============================================================================
+
+project:
+  name: "ProFast Delivery Delay Prediction"
+  version: "1.0.0"
+  random_seed: 42
+
+paths:
+  raw_dir: "data/raw"              # real Olist CSVs go in data/raw/olist/
+  synthetic_raw_dir: "data/raw/synthetic"
+  processed_dir: "data/processed"
+  models_dir: "models"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"
+
+data_source:
+  # "auto"      -> use real Olist CSVs if they exist, otherwise synthetic data
+  # "olist"     -> require real Olist CSVs (fail loudly if missing)
+  # "synthetic" -> always use the generated demonstration dataset
+  mode: "auto"
+  olist_dir: "data/raw/olist"
+  synthetic_n_orders: 60000
+  synthetic_seed: 20240101
+
+label:
+  # "date_based"     : late iff delivery CALENDAR DATE > promised CALENDAR DATE
+  #                    (delivered on the promised date counts as ON TIME = 0)
+  # "timestamp_based": late iff delivery TIMESTAMP > promised TIMESTAMP
+  # The date-based definition is the primary one; see reports/data_card.md.
+  primary: "date_based"
+  sensitivity_check: "timestamp_based"
+
+split:
+  train_frac: 0.70
+  val_frac: 0.15
+  test_frac: 0.15
+  # Chronological split on order_purchase_timestamp (never a random split).
+
+label_maturity:
+  # An order's outcome is only observable after it is delivered. Before we may
+  # use a row's label for training we require that its delivery timestamp is
+  # strictly earlier than the first booking timestamp of the *next* period.
+  enabled: true
+
+features:
+  # Payment attributes (type / instalments) are chosen at checkout but the
+  # payment rows themselves are written during approval, which happens AFTER
+  # booking. Availability at the booking instant is therefore uncertain, so
+  # they are excluded from the primary experiment. Flip to true to study them.
+  include_payment_features: false
+  # A distance proxy could be built from zip-prefix geolocation, but the
+  # coordinates are noisy and the "defensible booking-time calculation" is
+  # debatable, so distance is deliberately NOT used. See feature audit.
+  include_distance: false
+  # Categorical encoding: categories rarer than this are merged into a single
+  # "infrequent" bucket, and categories unseen in training are handled safely.
+  min_category_frequency: 50
+  max_category_levels: 60
+
+modeling:
+  # Small, explicit search spaces so the whole experiment runs on a laptop.
+  logistic_regression:
+    C: [0.1, 1.0]
+    max_iter: 1000
+    class_weight: "balanced"
+  random_forest:
+    n_estimators: 400
+    max_depth: [12, 20]
+    min_samples_leaf: [1, 5]
+    max_features: ["sqrt"]
+    class_weight: "balanced_subsample"
+    n_jobs: -1
+  dummy:
+    strategy: "most_frequent"
+
+threshold_selection:
+  # "max_f1"          : threshold that maximises F1 for the delayed class
+  # "recall_at_prec"  : highest recall whose precision >= max(prevalence, floor)
+  objective: "max_f1"
+  min_precision_floor: 0.30
+
+business_case:
+  # ASSUMPTIONS, not measurements. They are used only for the "is flagging worth
+  # it?" analysis and for the cost-optimal threshold, and they are meant to be
+  # replaced with real ProFast figures. Changing them does not change the model,
+  # only the recommended operating point.
+  cost_false_negative: 25.0    # a delay nobody anticipated (support + churn risk)
+  cost_false_positive: 4.0     # an unnecessary proactive contact / voucher
+
+evaluation:
+  bootstrap_n: 500          # bootstrap resamples for the test-metric confidence interval
+  subgroups_min_n: 100      # minimum subgroup size before a subgroup claim is made

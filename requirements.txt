@@ -1,0 +1,25 @@
+# =============================================================================
+# ProFast Delivery Delay Prediction - pinned dependencies
+# -----------------------------------------------------------------------------
+# Versions are pinned to the environment the published results were produced in.
+# Python 3.12 is required (3.13 beta builds do not export the NumPy C-ABI symbols
+# that the cp313 wheels expect, which produces an import error, not a warning).
+#
+#   python -m venv .venv
+#   .venv\Scripts\python -m pip install -r requirements.txt      (Windows)
+#   .venv/bin/python   -m pip install -r requirements.txt        (macOS/Linux)
+# =============================================================================
+
+numpy==2.5.4
+pandas==3.0.6
+scikit-learn==1.9.1
+joblib==1.6.0            # used directly to persist / load the fitted pipeline
+PyYAML==6.0.3            # config/config.yaml
+
+# Figures and the interactive app
+matplotlib==3.11.2
+seaborn==0.13.2
+streamlit==1.65.0
+
+# Tests
+pytest==9.1.1

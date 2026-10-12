@@ -1,0 +1,30 @@
+Feature,Meaning,Source,Available at booking?,Used?,Reason
+purchase_month,Calendar month of booking (1-12),order_purchase_timestamp,Yes,Yes,Known at checkout; captures Brazilian peak season (Nov/Dec).
+purchase_weekday,Day of week of booking (0=Mon),order_purchase_timestamp,Yes,Yes,Weekend bookings may be processed later.
+purchase_hour,Hour of day of booking (0-23),order_purchase_timestamp,Yes,Yes,Late-evening bookings miss same-day handling.
+lead_time_days,Days from booking date to promised delivery date,order_estimated_delivery_date - order_purchase_timestamp,Yes,Yes,The promise is assigned at booking; the single most informative input.
+n_items,Number of item units in the order,olist_order_items_dataset,Yes,Yes,Sets total weight/volume and picking complexity.
+n_products,Distinct products in the order,olist_order_items_dataset,Yes,Yes,Multi-product orders may take longer to consolidate.
+n_sellers,Distinct sellers in the order,olist_order_items_dataset,Yes,Yes,Multi-seller orders need several hand-offs.
+price_sum,Total goods value (BRL),olist_order_items_dataset.price,Yes,Yes,Proxy for basket size / service level.
+freight_sum,Total freight charged (BRL),olist_order_items_dataset.freight_value,Yes,Yes,Priced at checkout; correlates with distance and weight.
+order_value,price_sum + freight_sum (BRL),derived,Yes,Yes,Overall order size.
+freight_ratio,freight_sum / order_value,derived,Yes,Yes,Relative shipping burden; a compact distance/weight proxy.
+total_weight_g,Total package weight of the order (grams),olist_products_dataset.product_weight_g,Yes,Yes,Catalog attribute; heavy parcels move more slowly.
+mean_weight_g,Mean item weight (grams),olist_products_dataset.product_weight_g,Yes,Yes,Distinguishes one heavy item from several light ones.
+total_volume_cm3,Sum of product length x height x width (cm^3),olist_products_dataset dimensions,Yes,Yes,Volumetric weight; bulky items are harder to route.
+product_category,English category of the primary item,olist_products_dataset + product_category_name_translation,Yes,Yes,"Logistics behaviour varies by category (fragile, bulky, oversize)."
+customer_state,Customer's 2-letter Brazilian state,olist_customers_dataset.customer_state,Yes,Yes,Destination region is known from the delivery address.
+seller_state,2-letter state of the primary item's seller,olist_sellers_dataset.seller_state,Yes,Yes,Origin region is known from the seller record at booking.
+same_state,1 if the primary seller is in the customer's state,derived,Yes,Yes,Intra-state lanes are typically faster and less variable.
+order_delivered_customer_date,Actual delivery timestamp,olist_orders_dataset,No,No,Future event. Used only to build the label and the label-maturity mask.
+order_delivered_carrier_date,Carrier hand-over timestamp,olist_orders_dataset,No,No,Post-booking event; simply not available at the prediction moment.
+order_approved_at,Payment approval timestamp,olist_orders_dataset,No,No,"Happens after booking, so it cannot be an input to a booking-time model."
+shipping_limit_date,Seller shipping deadline,olist_order_items_dataset,No,No,Olist fills this while processing the order; booking-time availability unclear.
+order_status,Final order status,olist_orders_dataset,No,No,Outcome variable. Knowing it would trivially leak the target.
+payment_type / payment_installments,Payment method and number of instalments,olist_order_payments_dataset,Uncertain,No,"Chosen at checkout, but the payment rows are written during approval, i.e. after booking. Availability at the prediction instant is uncertain, so excluded from the primary experiment (config flag features.include_payment_features)."
+review_score / review_comment,Post-delivery customer review,olist_order_reviews_dataset,No,No,Written after delivery; would leak the outcome.
+order_id / customer_id / product_id / seller_id,Row identifiers,all tables,order_id only,No,"Not predictive of a physical process, and high-cardinality identifiers encourage memorisation. order_id is retained in the output for analysis only."
+customer_city / seller_city,City names,olist_customers_dataset / olist_sellers_dataset,Yes,No,"~4,100 cities would create a very large sparse design matrix; the state already captures most of the regional signal within this project's budget."
+geographical distance,Great-circle distance seller -> customer,could be derived from olist_geolocation_dataset,Technically yes,No,The geolocation table only offers noisy median coordinates per zip prefix; there is no defensible booking-time distance without extra assumptions. Skipped.
+customer_unique_id,Customer identity across orders,olist_customers_dataset,Yes,No,"Identifier; excluded by the identifier rule, and a repeat-customer signal would not transfer to new customers."

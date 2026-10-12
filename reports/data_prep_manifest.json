@@ -1,0 +1,279 @@
+{
+  "provenance": {
+    "data_source_kind": "olist",
+    "synthetic": false,
+    "raw_dir": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\raw\\olist",
+    "raw_file_sha256": {
+      "orders": "8df58ef3d2d7e9944010f7beecd9b75367f5588ec6e3c91cec19ae3345ef9ecf",
+      "items": "0bc4d068c4fe38cbb01bd90e8746e3c613fe7b4baef75fab7b0e329701c3e279",
+      "products": "3e6569628a17fbc75fd206ee357b59e20364b9afa90f5b6cd5b4d624c58aa9cc",
+      "customers": "983a422239e1712ded753b3bf9ecf47dc73f144d306029dcfa99e70a226883d2",
+      "sellers": "1f643d2b950373b85735e7794b20986f528d7a000432e7c6f9bcbb44d0846a0e",
+      "payments": "4f713964f2815dbbaa40b9488268c55aac3627bfce5aa96cf58d1f3616de3cc0",
+      "translation": "a81f0d1f27b27e7293f761bc79e3ce8f348ee39c4b3ed3e49bde38f478586278"
+    },
+    "processed_sha256": "0ed4ff8f1c6854d0b10c9624731acf860d2761ebd51b751623b025da65687dcd",
+    "dataset_fingerprint": "e12d3971ee312a44ad3103a252e91ea79fc65b51137be2bc712518937ea2ab0a"
+  },
+  "config": {
+    "project": {
+      "name": "ProFast Delivery Delay Prediction",
+      "version": "1.0.0",
+      "random_seed": 42
+    },
+    "paths": {
+      "raw_dir": "data/raw",
+      "synthetic_raw_dir": "data/raw/synthetic",
+      "processed_dir": "data/processed",
+      "models_dir": "models",
+      "reports_dir": "reports",
+      "figures_dir": "reports/figures"
+    },
+    "data_source": {
+      "mode": "auto",
+      "olist_dir": "data/raw/olist",
+      "synthetic_n_orders": 60000,
+      "synthetic_seed": 20240101
+    },
+    "label": {
+      "primary": "date_based",
+      "sensitivity_check": "timestamp_based"
+    },
+    "split": {
+      "train_frac": 0.7,
+      "val_frac": 0.15,
+      "test_frac": 0.15
+    },
+    "label_maturity": {
+      "enabled": true
+    },
+    "features": {
+      "include_payment_features": false,
+      "include_distance": false,
+      "min_category_frequency": 50,
+      "max_category_levels": 60
+    },
+    "modeling": {
+      "logistic_regression": {
+        "C": [
+          0.1,
+          1.0
+        ],
+        "max_iter": 1000,
+        "class_weight": "balanced"
+      },
+      "random_forest": {
+        "n_estimators": 400,
+        "max_depth": [
+          12,
+          20
+        ],
+        "min_samples_leaf": [
+          1,
+          5
+        ],
+        "max_features": [
+          "sqrt"
+        ],
+        "class_weight": "balanced_subsample",
+        "n_jobs": -1
+      },
+      "dummy": {
+        "strategy": "most_frequent"
+      }
+    },
+    "threshold_selection": {
+      "objective": "max_f1",
+      "min_precision_floor": 0.3
+    },
+    "business_case": {
+      "cost_false_negative": 25.0,
+      "cost_false_positive": 4.0
+    },
+    "evaluation": {
+      "bootstrap_n": 500,
+      "subgroups_min_n": 100
+    }
+  },
+  "statistics": {
+    "data_source_kind": "olist",
+    "raw_dir": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\raw\\olist",
+    "raw_file_sha256": {
+      "orders": "8df58ef3d2d7e9944010f7beecd9b75367f5588ec6e3c91cec19ae3345ef9ecf",
+      "items": "0bc4d068c4fe38cbb01bd90e8746e3c613fe7b4baef75fab7b0e329701c3e279",
+      "products": "3e6569628a17fbc75fd206ee357b59e20364b9afa90f5b6cd5b4d624c58aa9cc",
+      "customers": "983a422239e1712ded753b3bf9ecf47dc73f144d306029dcfa99e70a226883d2",
+      "sellers": "1f643d2b950373b85735e7794b20986f528d7a000432e7c6f9bcbb44d0846a0e",
+      "payments": "4f713964f2815dbbaa40b9488268c55aac3627bfce5aa96cf58d1f3616de3cc0",
+      "translation": "a81f0d1f27b27e7293f761bc79e3ce8f348ee39c4b3ed3e49bde38f478586278"
+    },
+    "label_definition": "date_based",
+    "raw_row_counts": {
+      "orders": 99441,
+      "items": 112650,
+      "products": 32951,
+      "customers": 99441,
+      "sellers": 3095,
+      "payments": 103886,
+      "translation": 71
+    },
+    "raw_orders": 99441,
+    "dropped_duplicate_order_id": 0,
+    "unparsable_order_purchase_timestamp": 0,
+    "unparsable_order_approved_at": 0,
+    "unparsable_order_delivered_carrier_date": 0,
+    "unparsable_order_delivered_customer_date": 0,
+    "unparsable_order_estimated_delivery_date": 0,
+    "dropped_missing_booking_or_promise_date": 0,
+    "dropped_promise_before_booking": 0,
+    "dropped_canceled_or_unavailable": 1234,
+    "dropped_unresolved_no_delivery_date": 1737,
+    "dropped_delivery_before_booking": 0,
+    "usable_orders": 96470,
+    "duplicate_keys_customers": 0,
+    "orders_missing_customer_row": 0,
+    "duplicate_keys_products": 0,
+    "duplicate_keys_sellers": 0,
+    "duplicate_keys_translation": 0,
+    "item_rows_in": 112650,
+    "orders_after_item_aggregation": 98666,
+    "multi_item_orders": 9803,
+    "multi_seller_orders": 1278,
+    "dropped_orders_without_items": 0,
+    "final_orders": 96470,
+    "final_late_rate": 0.06773090079817559,
+    "final_late_rate_timestamp_definition": 0.08112366538820359,
+    "date_range_start": "2016-09-15T12:16:38",
+    "date_range_end": "2018-08-29T15:00:37",
+    "missingness_model_features": {
+      "purchase_month": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "purchase_weekday": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "purchase_hour": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "lead_time_days": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "n_items": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "n_products": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "n_sellers": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "price_sum": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "freight_sum": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "order_value": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "freight_ratio": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "total_weight_g": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "mean_weight_g": {
+        "n_missing": 16,
+        "pct_missing": 0.0166
+      },
+      "total_volume_cm3": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "same_state": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "customer_state": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "seller_state": {
+        "n_missing": 0,
+        "pct_missing": 0.0
+      },
+      "product_category": {
+        "n_missing": 1332,
+        "pct_missing": 1.3807
+      }
+    },
+    "model_features": [
+      "purchase_month",
+      "purchase_weekday",
+      "purchase_hour",
+      "lead_time_days",
+      "n_items",
+      "n_products",
+      "n_sellers",
+      "price_sum",
+      "freight_sum",
+      "order_value",
+      "freight_ratio",
+      "total_weight_g",
+      "mean_weight_g",
+      "total_volume_cm3",
+      "same_state",
+      "customer_state",
+      "seller_state",
+      "product_category"
+    ],
+    "numeric_features": [
+      "purchase_month",
+      "purchase_weekday",
+      "purchase_hour",
+      "lead_time_days",
+      "n_items",
+      "n_products",
+      "n_sellers",
+      "price_sum",
+      "freight_sum",
+      "order_value",
+      "freight_ratio",
+      "total_weight_g",
+      "mean_weight_g",
+      "total_volume_cm3",
+      "same_state"
+    ],
+    "categorical_features": [
+      "customer_state",
+      "seller_state",
+      "product_category"
+    ],
+    "class_distribution": {
+      "0": 89936,
+      "1": 6534
+    },
+    "late_rate": 0.06773090079817559,
+    "dataset_fingerprint": "e12d3971ee312a44ad3103a252e91ea79fc65b51137be2bc712518937ea2ab0a",
+    "booking_period": {
+      "start": "2016-09-15T12:16:38",
+      "end": "2018-08-29T15:00:37",
+      "n": 96470
+    },
+    "synthetic": false,
+    "processed_path": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\data\\processed\\orders_prepared.csv",
+    "processed_sha256": "0ed4ff8f1c6854d0b10c9624731acf860d2761ebd51b751623b025da65687dcd"
+  }
+}

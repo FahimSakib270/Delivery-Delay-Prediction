@@ -1,0 +1,172 @@
+{
+  "model_name": "logistic_regression",
+  "threshold": 0.63,
+  "test_metrics": {
+    "n": 14471.0,
+    "n_late": 620.0,
+    "prevalence": 0.04284430930827172,
+    "threshold": 0.63,
+    "roc_auc": 0.6474743875485873,
+    "average_precision": 0.07105128245065447,
+    "brier": 0.2847119189956628,
+    "log_loss": 0.7732862067898806,
+    "accuracy": 0.7472185750811968,
+    "precision": 0.0625,
+    "recall": 0.35,
+    "f1": 0.10606060606060606,
+    "specificity": 0.7649989170457007,
+    "tp": 217.0,
+    "fp": 3255.0,
+    "fn": 403.0,
+    "tn": 10596.0,
+    "predicted_positive_rate": 0.2399281321263216,
+    "precision_lift_over_prevalence": 1.4587701612903226
+  },
+  "bootstrap_95": {
+    "average_precision": {
+      "point": 0.07105128245065447,
+      "lower": 0.06186745053169905,
+      "upper": 0.08290692864341857,
+      "mean": 0.07193680616413158,
+      "std": 0.005701951629818138,
+      "n_effective": 500
+    },
+    "roc_auc": {
+      "point": 0.6474743875485873,
+      "lower": 0.6275783207487566,
+      "upper": 0.6652272113108995,
+      "mean": 0.6471926880879103,
+      "std": 0.009717401848322227,
+      "n_effective": 500
+    },
+    "precision": {
+      "point": 0.0625,
+      "lower": 0.054552361651601995,
+      "upper": 0.07096471898448095,
+      "mean": 0.062321671944298114,
+      "std": 0.004222265905414013,
+      "n_effective": 500
+    },
+    "recall": {
+      "point": 0.35,
+      "lower": 0.3119842357409525,
+      "upper": 0.3894989839371147,
+      "mean": 0.34973171283014926,
+      "std": 0.019879366278904378,
+      "n_effective": 500
+    },
+    "f1": {
+      "point": 0.10606060606060606,
+      "lower": 0.09309069895133411,
+      "upper": 0.11929196294385501,
+      "mean": 0.10576546917944739,
+      "std": 0.0068040042350456615,
+      "n_effective": 500
+    },
+    "brier": {
+      "point": 0.2847119189956628,
+      "lower": 0.2820645020497508,
+      "upper": 0.2871113463356001,
+      "mean": 0.2846780555590651,
+      "std": 0.001275601250020611,
+      "n_effective": 500
+    }
+  },
+  "calibration_ece": 0.4736117666926263,
+  "label_sensitivity": {
+    "date_based (primary)": {
+      "n": 14471.0,
+      "n_late": 620.0,
+      "prevalence": 0.04284430930827172,
+      "threshold": 0.63,
+      "roc_auc": 0.6474743875485873,
+      "average_precision": 0.07105128245065447,
+      "brier": 0.28471191899566267,
+      "log_loss": 0.7732862067898806,
+      "accuracy": 0.7472185750811968,
+      "precision": 0.0625,
+      "recall": 0.35,
+      "f1": 0.10606060606060606,
+      "specificity": 0.7649989170457007,
+      "tp": 217.0,
+      "fp": 3255.0,
+      "fn": 403.0,
+      "tn": 10596.0,
+      "predicted_positive_rate": 0.2399281321263216,
+      "precision_lift_over_prevalence": 1.4587701612903226
+    },
+    "timestamp_based": {
+      "n": 14471.0,
+      "n_late": 957.0,
+      "prevalence": 0.06613226452905811,
+      "threshold": 0.63,
+      "roc_auc": 0.6452602889159105,
+      "average_precision": 0.10021472574358412,
+      "brier": 0.28085836913064816,
+      "log_loss": 0.7649136589228601,
+      "accuracy": 0.7374749498997996,
+      "precision": 0.0907258064516129,
+      "recall": 0.329153605015674,
+      "f1": 0.14224429893881238,
+      "specificity": 0.766390409945242,
+      "tp": 315.0,
+      "fp": 3157.0,
+      "fn": 642.0,
+      "tn": 10357.0,
+      "predicted_positive_rate": 0.2399281321263216,
+      "precision_lift_over_prevalence": 1.371884164222874
+    }
+  },
+  "cost": {
+    "assumptions": {
+      "cost_false_negative": 25.0,
+      "cost_false_positive": 4.0
+    },
+    "at_frozen_threshold": {
+      "false_negatives": 403.0,
+      "false_positives": 3255.0,
+      "true_positives": 217.0,
+      "cost_total": 23095.0,
+      "cost_per_1000_orders": 1595.9505217331214,
+      "cost_if_never_flagging_per_1000": 1071.1077327067928,
+      "saving_vs_never_flagging_per_1000": -524.8427890263285,
+      "threshold": 0.63
+    },
+    "at_threshold_0_5": {
+      "false_negatives": 133.0,
+      "false_positives": 7554.0,
+      "true_positives": 487.0,
+      "cost_total": 33541.0,
+      "cost_per_1000_orders": 2317.808029852809,
+      "cost_if_never_flagging_per_1000": 1071.1077327067928,
+      "saving_vs_never_flagging_per_1000": -1246.700297146016,
+      "threshold": 0.5
+    }
+  },
+  "duplicate_check": {
+    "test_rows": 14471,
+    "unique_order_ids": 14471
+  },
+  "subgroups_min_n": 100,
+  "n_subgroups_flagged_small": 0,
+  "data_source": {
+    "synthetic": false,
+    "kind": "olist"
+  },
+  "model_trained_at": "2026-10-12T14:10:56.181278+00:00",
+  "figures": {
+    "target_balance": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\01_target_balance.png",
+    "lead_time_effect": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\02_lead_time_effect.png",
+    "model_comparison": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\03_model_comparison.png",
+    "pr_curve": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\04_precision_recall.png",
+    "roc_curve": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\05_roc.png",
+    "threshold_curve": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\06_validation_threshold_curve.png",
+    "cost_curve": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\07_cost_curve.png",
+    "calibration": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\08_calibration.png",
+    "confusion": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\09_confusion_matrix.png",
+    "score_distribution": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\10_score_distribution.png",
+    "importance": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\11_feature_importance.png",
+    "subgroups": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\12_subgroup_recall.png",
+    "bootstrap": "C:\\Users\\FahimX\\Desktop\\Delivery-delay prediction\\reports\\figures\\13_bootstrap_intervals.png"
+  }
+}

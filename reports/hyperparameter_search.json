@@ -1,0 +1,52 @@
+{
+  "dummy": {
+    "model": "dummy",
+    "grid": {},
+    "cv_splits": 3,
+    "best_params": {
+      "strategy": "most_frequent"
+    },
+    "cv_scores": [
+      0.03737505432420687,
+      0.09076798907307382,
+      0.10740671757620911
+    ],
+    "best_cv_score": 0.07851658699116326,
+    "seconds": 1.83
+  },
+  "logistic_regression": {
+    "model": "logistic_regression",
+    "grid": {
+      "model__C": [
+        0.1,
+        1.0
+      ]
+    },
+    "cv_splits": 3,
+    "best_params": {
+      "model__C": 0.1
+    },
+    "best_cv_score": 0.13548883946640708,
+    "seconds": 11.76
+  },
+  "random_forest": {
+    "model": "random_forest",
+    "grid": {
+      "model__max_depth": [
+        12,
+        20
+      ],
+      "model__min_samples_leaf": [
+        1,
+        5
+      ]
+    },
+    "cv_splits": 3,
+    "best_params": {
+      "model__max_depth": 12,
+      "model__min_samples_leaf": 1
+    },
+    "best_cv_score": 0.14814256665767137,
+    "seconds": 333.19
+  }
+}
