@@ -1,46 +1,62 @@
 # ProFast Delivery Delay Prediction
 
-A reproducible Python research prototype that ranks orders by delivery-delay risk
-**at booking time**, after a promised delivery date has been assigned. Inspired by
-ProFast, an undergraduate MERN package-management system; integration or live
-operational use is not claimed.
+A Python prototype that ranks orders by delivery-delay risk **at booking time**,
+after a delivery date has been promised. Inspired by the ProFast undergraduate
+package-management project, it includes a local Streamlit demo.
 
-The real-data experiment uses the **Brazilian E-Commerce Public Dataset by Olist**.
-It compares a majority-class baseline, logistic regression, and a random forest.
-See the [generated results](reports/results_summary.md) for measured performance
-and the [technical report](reports/technical_report.md) for interpretation.
+## Dataset and approach
 
-## What the experiment establishes
+The experiment uses public **Olist Brazilian e-commerce data (2016–2018)**,
+with one row per order. An order is late if it arrives after the promised calendar
+date; delivery on that date is on time. Models use booking-time information such
+as promised lead time, order value, item details and customer/seller location.
+Historical item and catalog fields are assumed to have been available at checkout.
 
-- One modelling row per order, with audited booking-time feature assumptions.
-- Calendar-date lateness as the primary label; delivery on the promised day is on time.
-- Training-fitted preprocessing inside sklearn pipelines.
-- Chronological outer splits and inner cross-validation with actual delivery-time
-  label-maturity checks. Identical booking timestamps stay together.
-- Model selection by validation average precision and a validation-selected F1 threshold.
-- Test diagnostics only after automated model/threshold selection is frozen.
-- Error analysis, subgroup metrics, calibration diagnostics and bootstrap intervals.
+A majority-class baseline, logistic regression and random forest are compared.
+Delivery outcomes define labels and label-maturity checks, never model inputs.
+Preprocessing is fitted on training data inside scikit-learn pipelines.
 
-This is a **corrected retrospective rerun**: historical test outcomes were already
-inspected during project development. The code excludes them from selection, but
-they are not a new confirmation set. Further rolling-origin and prospective
-validation are needed. The model's scores are **uncalibrated**, and the demo displays
-risk scores without probability claims or customer-contact recommendations.
+Evaluation uses chronological train/validation/test periods and chronological
+cross-validation. Equal booking timestamps stay together. Training labels must
+already be observable before the next evaluation period starts, including inside
+cross-validation. Validation average precision selects the model; validation F1
+selects its decision threshold. Both are frozen before test diagnostics.
 
-## Setup — Windows PowerShell
+## Actual results
 
-Python 3.12 is the tested interpreter. Run from the repository root:
+The selected logistic regression was evaluated on **14,471 test orders**, including
+620 late orders (4.28%), at a frozen threshold of **0.63**.
+
+| Test metric | Result |
+| --- | --- |
+| Average precision | 0.0711 (baseline: 0.0428) |
+| ROC-AUC | 0.6475 |
+| Precision / recall | 0.0625 / 0.3500 |
+| F1 | 0.1061 |
+
+Ranking performance is modest. With hypothetical penalties of 25 per missed delay
+and 4 per false alarm, the threshold costs **1,595.95 per 1,000 orders**, versus
+**1,071.11** for flagging nothing. These penalties do not measure business profit
+or intervention effects. Scores are uncalibrated risk scores, not probabilities.
+
+See the [generated results](reports/results_summary.md) for model comparisons and
+uncertainty intervals, and the [technical report](reports/technical_report.md) for
+error analysis, calibration and exploratory rule comparisons.
+
+## Run locally
+
+Python 3.12 is tested. From the repository root in Windows PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pytest
 ```
 
-Linux/macOS users can use `python3.12 -m venv .venv` and `.venv/bin/python`.
-The exact pinned versions are in `requirements.txt`. Installation requires network
-access; tests themselves require no external dataset or network.
+Linux/macOS: use `python3.12 -m venv .venv` and `.venv/bin/python`.
+Tests need no external dataset or network.
 
-## Reproduce the real Olist experiment
+To reproduce the real-data experiment (these commands regenerate reports):
 
 ```powershell
 .\.venv\Scripts\python.exe -m src.download
@@ -48,20 +64,14 @@ access; tests themselves require no external dataset or network.
 .\.venv\Scripts\python.exe -m src.train
 .\.venv\Scripts\python.exe -m src.evaluate
 .\.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py
-.\.venv\Scripts\python.exe -m pytest
 ```
 
-The default configuration requires real data and fails clearly if it is absent.
-If the public download is unavailable, download from
-[the publisher page](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
-and extract CSVs to `data/raw/olist/`. Do not add credentials to this repository.
-The data is published under **CC BY-NC-SA 4.0**; verify the publisher's terms before
-reuse. Raw data and fitted model binaries are excluded from git.
+Skip the download if CSVs already exist. If it fails, extract the Olist CSVs into
+`data/raw/olist/` manually. See [dataset details](reports/data_card.md) for source,
+checksums and the CC BY-NC-SA 4.0 license. The default configuration requires real
+data; raw CSVs and fitted models are excluded from Git.
 
-## Explicit synthetic software demonstration
-
-This uses separate `demo/` output directories and cannot overwrite the published
-real-data results. Synthetic scores demonstrate software behavior only.
+For a synthetic software demonstration, use the separate `demo/` outputs:
 
 ```powershell
 .\.venv\Scripts\python.exe -m src.prepare --config config/synthetic.yaml
@@ -72,54 +82,25 @@ $env:PROFAST_CONFIG = "config/synthetic.yaml"
 Remove-Item Env:PROFAST_CONFIG
 ```
 
-`PROFAST_CONFIG` selects the app's configuration; CLI tools use `--config`.
-The app's defaults and choices come from training inputs saved with the model,
-not from test-set distributions. A sampled test row is available for demonstration;
-its predictions are not a new evaluation experiment.
+Synthetic metrics are not evidence of real-world performance. CLI tools use
+`--config`; the app uses `PROFAST_CONFIG`. The app's defaults come from training
+inputs; a sampled test row is only a demo input. Evaluation also runs exploratory
+calibration and rule comparisons; rerun those with `python -m src.experiments`.
+Calibration uses validation predictions only and does not replace the serving model.
 
-## Exploratory calibration and rule comparisons
+## Limitations and project files
 
-`src.evaluate` also runs `src.experiments`, which can be rerun explicitly:
+This is a corrected retrospective rerun: historical test outcomes were inspected
+during development, so the test period is not a fresh confirmation set. Completed
+order and label-maturity filters introduce selection bias. Missing physical
+measurements need more work; row-bootstrap intervals miss temporal/group dependence.
+Brazilian marketplace results do not establish performance for Bangladesh couriers.
+Rolling-origin evaluation and prospective validation are needed before operational use.
 
-```powershell
-.\.venv\Scripts\python.exe -m src.experiments
-```
+- `src/`: preparation, leakage guards, temporal splits, training and evaluation.
+- `tests/`: leakage, boundary, maturity, diagnostics and app checks.
+- `reports/`: generated results, figures, data/model cards and run manifests.
+- `docs/`: learning guide, interview notes and [portfolio wording](docs/cv_project_entry.md).
+- `models/`: local fitted bundle and training inputs; load only trusted artifacts.
 
-Isotonic calibration is fitted on saved **validation predictions only**. AP and
-ROC-AUC are recomputed after calibration because isotonic mappings can introduce
-ties. A fixed seven-day promise rule and fixed model/random top-up budgets are
-compared retrospectively. Random top-ups use their exact sampling expectation.
-
-Outputs: `reports/exploratory_summary.json`, `exploratory_policies.csv`, and
-`exploratory_calibrated_predictions.csv`. These diagnostics do not replace the
-serving bundle and do not establish business profit. The costs are hypothetical
-classification penalties, not measured intervention effects. Any proposed rule
-requires further backtesting and a controlled pilot.
-
-## Project layout and outputs
-
-| Location | Purpose |
-| --- | --- |
-| `src/data_prep.py`, `features.py` | Joins, label, audit, preprocessing and models |
-| `src/splitting.py`, `training.py` | Temporal evaluation, mature CV, selection and saved bundle |
-| `src/evaluation.py`, `evaluate.py`, `plots.py` | Metrics, error analysis and figures |
-| `src/experiments.py` | Exploratory calibration and policy comparisons |
-| `src/reporting.py` | Data/model cards and technical report generated from artifacts |
-| `models/best_model.joblib`, `training_inputs.csv` | Trusted local serving artifacts; excluded from git |
-| `reports/run_manifest.json`, `hyperparameter_search.json` | Provenance, configuration and per-CV-fold maturity audit |
-| `reports/validation_predictions.csv`, `test_predictions.csv` | Saved scores for reproducible diagnostics |
-| `tests/` | Leakage, boundary, maturity, experiment and isolated Streamlit runtime checks |
-| `docs/` | Interview preparation, learning guide and factual CV wording |
-
-Generated report values should be changed by rerunning the pipeline, not by editing
-them manually. Model artifacts are pickle-based: load only trusted local artifacts.
-
-## Limitations
-
-The dataset describes 2016–2018 Brazilian marketplace orders, not Bangladesh
-courier operations. Completed-order filtering and label-maturity filtering introduce
-selection bias. Checkout availability of historical catalog/item fields is assumed,
-not proven by a live snapshot. Missing physical measurements need further treatment.
-Row-bootstrap intervals do not capture all temporal/group dependence. A single
-historical split, hypothetical costs, and uncalibrated scores are insufficient for
-production use.
+Regenerate reports through the pipeline rather than editing measured values by hand.
