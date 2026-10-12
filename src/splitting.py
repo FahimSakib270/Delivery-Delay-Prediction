@@ -15,6 +15,8 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
+import numpy as np
+from sklearn.model_selection import TimeSeriesSplit
 
 from .config import load_config
 from .data_prep import TARGET_COLUMN
@@ -56,7 +58,20 @@ def chronological_split(
     if n < 10:
         raise ValueError(f"need at least 10 orders to build three folds, got {n}")
 
-    n_train, n_val_end = _cut_points(n, cfg)
+    if ordered["order_purchase_timestamp"].isna().any():
+        raise ValueError("booking timestamps must not be missing")
+    desired_train, desired_val_end = _cut_points(n, cfg)
+    # Cut only between distinct booking timestamps, reserving a group for each
+    # remaining period. No order at a shared instant crosses a boundary.
+    boundaries = np.flatnonzero(
+        ordered["order_purchase_timestamp"].ne(ordered["order_purchase_timestamp"].shift())
+    )[1:]
+    if len(boundaries) < 2:
+        raise ValueError("need at least three distinct booking timestamps")
+    first_candidates = boundaries[:-1]
+    n_train = int(first_candidates[np.argmin(abs(first_candidates - desired_train))])
+    second_candidates = boundaries[boundaries > n_train]
+    n_val_end = int(second_candidates[np.argmin(abs(second_candidates - desired_val_end))])
     frames = {
         "train": ordered.iloc[:n_train].copy(),
         "validation": ordered.iloc[n_train:n_val_end].copy(),
@@ -84,7 +99,7 @@ def _describe_periods(frames: Dict[str, pd.DataFrame], n: int) -> Dict[str, Any]
     val_end = frames["validation"]["order_purchase_timestamp"].max()
     test_start = frames["test"]["order_purchase_timestamp"].min()
 
-    if train_end > val_start or val_end > test_start:
+    if train_end >= val_start or val_end >= test_start:
         raise AssertionError("chronological split produced overlapping periods")
     # Ties on the cut instant are unavoidable when many orders share a timestamp;
     # they are recorded explicitly rather than silently ignored.
@@ -127,7 +142,7 @@ def apply_label_maturity(
 
     for name, horizon in horizons.items():
         before = len(out[name])
-        keep = out[name]["delivered_date"] < horizon
+        keep = pd.to_datetime(out[name]["order_delivered_customer_date"]) < horizon
         out[name] = out[name].loc[keep].reset_index(drop=True)
         info[name] = {
             "horizon": horizon.isoformat(),
@@ -146,12 +161,53 @@ def apply_label_maturity(
     info["test"] = {
         "n_rows": int(len(test)),
         "n_delivered_after_observation_window": int(
-            (test["delivered_date"] > last_booking).sum()
+            (pd.to_datetime(test["order_delivered_customer_date"]) > last_booking).sum()
         ),
         "note": ("test labels are all treated as observable; the count above flags rows whose "
                  "delivery falls after the last booking instant present in the dataset"),
     }
     return out, info
+
+
+def mature_cv_splits(frame: pd.DataFrame, n_splits: int = 3):
+    """Expanding-window CV with strict booking boundaries and observable labels.
+
+    Return positional indices for sklearn plus an audit trail. Validation labels
+    are retrospective evaluation outcomes; training labels must be known before
+    the fold's first prediction. The caller's outer maturity filter limits all
+    these observations to the outer model-selection horizon.
+    """
+    booking = pd.to_datetime(frame["order_purchase_timestamp"]).reset_index(drop=True)
+    delivery = pd.to_datetime(frame["order_delivered_customer_date"]).reset_index(drop=True)
+    if booking.isna().any() or delivery.isna().any():
+        raise ValueError("CV requires complete booking and delivery timestamps")
+    if not booking.is_monotonic_increasing:
+        raise ValueError("CV rows must be sorted by booking timestamp")
+    unique_times = booking.drop_duplicates().reset_index(drop=True)
+    folds, audit = [], []
+    for fold, (train_groups, val_groups) in enumerate(
+        TimeSeriesSplit(n_splits=n_splits).split(unique_times), start=1
+    ):
+        horizon = unique_times.iloc[val_groups[0]]
+        train_mask = booking.isin(unique_times.iloc[train_groups])
+        val_mask = booking.isin(unique_times.iloc[val_groups])
+        mature_mask = train_mask & (delivery < horizon)
+        train_idx = np.flatnonzero(mature_mask.to_numpy())
+        val_idx = np.flatnonzero(val_mask.to_numpy())
+        if len(train_idx) == 0 or frame.iloc[train_idx][TARGET_COLUMN].nunique() < 2:
+            raise ValueError(f"CV fold {fold} has insufficient mature training classes")
+        if frame.iloc[val_idx][TARGET_COLUMN].nunique() < 2:
+            raise ValueError(f"CV fold {fold} has insufficient validation classes")
+        folds.append((train_idx, val_idx))
+        audit.append({
+            "fold": fold, "validation_start": horizon.isoformat(),
+            "train_rows_before_maturity": int(train_mask.sum()),
+            "train_rows": len(train_idx), "validation_rows": len(val_idx),
+            "dropped_immature": int(train_mask.sum()) - len(train_idx),
+            "latest_training_delivery": delivery.iloc[train_idx].max().isoformat(),
+            "latest_training_booking": booking.iloc[train_idx].max().isoformat(),
+        })
+    return folds, audit
 
 
 def split_and_filter(

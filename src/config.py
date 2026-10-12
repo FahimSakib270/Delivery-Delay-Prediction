@@ -19,7 +19,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG_PATH = ROOT_DIR / "config" / "config.yaml"
 
 DEFAULTS: Dict[str, Any] = {
-    "project": {"name": "ProFast Delivery Delay Prediction", "version": "1.0.0", "random_seed": 42},
+    "project": {"name": "ProFast Delivery Delay Prediction", "version": "1.1.0", "random_seed": 42},
     "paths": {
         "raw_dir": "data/raw",
         "synthetic_raw_dir": "data/raw/synthetic",
@@ -29,7 +29,7 @@ DEFAULTS: Dict[str, Any] = {
         "figures_dir": "reports/figures",
     },
     "data_source": {
-        "mode": "auto",
+        "mode": "olist",
         "olist_dir": "data/raw/olist",
         "synthetic_n_orders": 60000,
         "synthetic_seed": 20240101,

@@ -2,8 +2,7 @@
 # ProFast Delivery Delay Prediction - pinned dependencies
 # -----------------------------------------------------------------------------
 # Versions are pinned to the environment the published results were produced in.
-# Python 3.12 is required (3.13 beta builds do not export the NumPy C-ABI symbols
-# that the cp313 wheels expect, which produces an import error, not a warning).
+# Python 3.12 is the tested interpreter. Other versions have not been verified.
 #
 #   python -m venv .venv
 #   .venv\Scripts\python -m pip install -r requirements.txt      (Windows)

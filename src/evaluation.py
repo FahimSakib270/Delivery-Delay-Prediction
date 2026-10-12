@@ -3,13 +3,13 @@
 Two evaluation rules are enforced throughout:
 
 * The **decision threshold is chosen on the validation split and then frozen**; the
-  test split is scored once with that frozen threshold. Re-selecting the threshold
+  test split is evaluated with that frozen threshold. Re-selecting the threshold
   on the test set would turn a reported metric into an optimistic guess.
 * Because delays are the minority class, the primary ranking metric is **average
-  precision (PR-AUC)**, which only cares about the positive class. **ROC-AUC is
-  reported as well but explicitly flagged as optimistic** for very imbalanced data,
-  because it is dominated by the many easy true negatives. Accuracy is reported only
-  to show how useless it is here.
+  precision**, which summarizes precision-recall ranking at the observed prevalence. **ROC-AUC is
+  reported as a positive-negative ranking measure**. Low prevalence does not
+  automatically inflate ROC-AUC, but it does not directly describe flag precision.
+  Accuracy must be compared with the majority-class baseline.
 """
 
 from __future__ import annotations

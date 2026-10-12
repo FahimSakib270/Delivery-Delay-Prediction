@@ -198,7 +198,7 @@ def plot_calibration(table: pd.DataFrame, path: Path, ece: Optional[float] = Non
     if ece is not None and np.isfinite(ece):
         title += f"\nweighted mean gap (ECE) = {ece:.3f}"
     ax.set_title(title)
-    ax.set_xlabel("predicted probability of delay")
+    ax.set_xlabel("raw model delay-risk score")
     ax.set_ylabel("observed share delayed")
     ax.legend(fontsize=9)
     return _save(fig, path)
@@ -235,7 +235,7 @@ def plot_score_distribution(predictions: pd.DataFrame, path: Path, threshold: fl
     ax.hist(late, bins=bins, alpha=0.65, label=f"delayed (n={len(late):,})",
             color=COLOR_ACCENT, density=True)
     ax.axvline(threshold, color="black", ls=":", label=f"threshold {threshold:.3f}")
-    ax.set_xlabel("predicted probability of delay")
+    ax.set_xlabel("raw model delay-risk score")
     ax.set_ylabel("density")
     ax.set_title("Separation of the two classes (test period)")
     ax.legend(fontsize=9)

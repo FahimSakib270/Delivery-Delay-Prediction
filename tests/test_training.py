@@ -64,7 +64,7 @@ def test_tune_model_cross_validates_the_untuned_baseline_as_well(cheap_cfg, smal
     """
     train = small_frames["train"]
     pipeline, info = tune_model(
-        "dummy", train[MODEL_FEATURES], train[TARGET_COLUMN].astype(int), cheap_cfg, cv_splits=2
+        "dummy", train[MODEL_FEATURES], train[TARGET_COLUMN].astype(int), cheap_cfg, cv_splits=2, chronology=train
     )
     assert info["grid"] == {}
     assert "best_cv_score" in info and np.isfinite(info["best_cv_score"])
@@ -77,7 +77,7 @@ def test_tune_model_scores_every_grid_point_for_the_linear_model(cheap_cfg, smal
     train = small_frames["train"]
     _pipeline, info = tune_model(
         "logistic_regression", train[MODEL_FEATURES], train[TARGET_COLUMN].astype(int),
-        cheap_cfg, cv_splits=2,
+        cheap_cfg, cv_splits=2, chronology=train,
     )
     assert set(info["best_params"]) == {"model__C"}
     table = info["search_table"]
@@ -91,28 +91,17 @@ def test_fit_candidates_covers_every_candidate_and_every_split(cheap_cfg, small_
 
     assert set(fitted) == set(CANDIDATE_MODELS)
     assert set(comparison["model"]) == set(CANDIDATE_MODELS)
-    assert set(comparison["split"]) == {"train", "validation", "test"}
-    assert len(comparison) == len(CANDIDATE_MODELS) * 3
+    assert set(comparison["split"]) == {"train", "validation"}
+    assert len(comparison) == len(CANDIDATE_MODELS) * 2
     assert set(info) == set(CANDIDATE_MODELS)
     for column in ("average_precision", "roc_auc", "recall", "precision"):
         assert comparison[column].notna().any()
 
 
-def test_fit_candidates_never_scores_the_unfitted_test_split_higher_than_train(cheap_cfg, small_frames):
-    """A sanity floor: the model cannot be *better* on a later period than on the past.
-
-    If it is, the pipeline is leaking (for example by shuffling before splitting).
-    """
-    _fitted, comparison, _info = fit_candidates(cheap_cfg, small_frames, cv_splits=2, seed=0)
-    comparison = comparison.set_index(["model", "split"])["average_precision"]
-    for model in CANDIDATE_MODELS:
-        train_score = comparison.loc[(model, "train")]
-        test_score = comparison.loc[(model, "test")]
-        if np.isfinite(train_score) and np.isfinite(test_score):
-            assert test_score <= train_score + 0.15, (
-                f"{model}: test AP {test_score:.3f} is implausibly better than train AP "
-                f"{train_score:.3f} - suspect a leak"
-            )
+def test_candidate_fitting_does_not_touch_the_test_frame(cheap_cfg, small_frames):
+    frames = {k: v for k, v in small_frames.items() if k != "test"}
+    _, comparison, _ = fit_candidates(cheap_cfg, frames, cv_splits=2, seed=0)
+    assert "test" not in set(comparison["split"])
 
 
 def test_select_best_model_uses_validation_average_precision_not_test():

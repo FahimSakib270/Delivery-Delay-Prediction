@@ -69,6 +69,9 @@ def load_artifacts(
         )
 
     bundle = joblib.load(model_path)
+    metadata = load_json(resolve(cfg, "paths", "processed_dir") / "dataset_metadata.json")
+    if bundle.get("dataset_sha256") != metadata.get("provenance", {}).get("processed_sha256"):
+        raise ValueError("Model and prepared dataset checksums differ; rerun training for this dataset")
     predictions = pd.read_csv(predictions_path)
     for column in ("order_purchase_timestamp", "promised_date", "delivered_date"):
         if column in predictions.columns:
@@ -183,8 +186,9 @@ def evaluate(
     if make_plots:
         df = load_processed(cfg=cfg)
         figures: Dict[str, str] = {}
-        figures["target_balance"] = str(plot_target_balance(df, figures_dir / "01_target_balance.png"))
-        figures["lead_time_effect"] = str(plot_lead_time_effect(df, figures_dir / "02_lead_time_effect.png"))
+        development = df.loc[df["order_purchase_timestamp"] < pd.Timestamp(bundle["split_info"]["split"]["periods"]["test_start"])].copy()
+        figures["target_balance"] = str(plot_target_balance(development, figures_dir / "01_target_balance.png"))
+        figures["lead_time_effect"] = str(plot_lead_time_effect(development, figures_dir / "02_lead_time_effect.png"))
         if not comparison.empty:
             figures["model_comparison"] = str(
                 plot_model_comparison(comparison, figures_dir / "03_model_comparison.png"))
@@ -212,12 +216,16 @@ def evaluate(
             subgroups, figures_dir / "12_subgroup_recall.png"))
         figures["bootstrap"] = str(plot_bootstrap_intervals(
             intervals, figures_dir / "13_bootstrap_intervals.png"))
-        summary["figures"] = figures
+        summary["figures"] = {name: str(Path(path).relative_to(reports_dir)) for name, path in figures.items()}
 
     (reports_dir / "results_summary.md").write_text(
         markdown_summary(summary, comparison, subgroups, importance), encoding="utf-8"
     )
     save_json(summary, reports_dir / "evaluation_summary.json")
+    from .experiments import run as run_experiments
+    from .reporting import write_reports
+    exploratory, policies = run_experiments(cfg)
+    write_reports(cfg, summary, comparison, exploratory, policies)
     _print_summary(summary, subgroups)
     return summary
 
@@ -245,7 +253,7 @@ def _print_summary(summary: Dict[str, Any], subgroups: pd.DataFrame) -> None:
     print(f"  average precision    : {_fmt(metrics['average_precision'])}"
           f"   [{_fmt(intervals.get('average_precision', {}).get('lower'))},"
           f" {_fmt(intervals.get('average_precision', {}).get('upper'))}]")
-    print(f"  roc-auc (optimistic) : {_fmt(metrics['roc_auc'])}"
+    print(f"  roc-auc              : {_fmt(metrics['roc_auc'])}"
           f"   [{_fmt(intervals.get('roc_auc', {}).get('lower'))},"
           f" {_fmt(intervals.get('roc_auc', {}).get('upper'))}]")
     print(f"  precision / recall   : {_fmt(metrics['precision'])} / {_fmt(metrics['recall'])}"

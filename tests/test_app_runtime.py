@@ -6,8 +6,8 @@ artefacts on disk?* Streamlit's ``AppTest`` executes the script in-process, so a
 figure loop, a missing key in the summary file or a bad widget argument fails here
 instead of in front of an audience.
 
-The tests are skipped (with a clear reason) when the pipeline artefacts are missing,
-because the app legitimately refuses to render without them.
+Tests generate their own small synthetic artifacts in temporary directories.
+They run on a clean checkout without external data or pre-existing model files.
 """
 
 from __future__ import annotations
@@ -26,15 +26,6 @@ APP_PATH = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
 RUN_TIMEOUT = 60
 
 
-def _artefacts_present() -> bool:
-    cfg = {"paths": {"models_dir": "models", "processed_dir": "data/processed",
-                     "reports_dir": "reports"}}
-    return (
-        (resolve(cfg, "paths", "models_dir") / "best_model.joblib").exists()
-        and (resolve(cfg, "paths", "processed_dir") / "orders_prepared.csv").exists()
-        and (resolve(cfg, "paths", "reports_dir") / "evaluation_summary.json").exists()
-    )
-
 
 def page_text(app) -> str:
     """Everything the page printed, whichever Streamlit element printed it.
@@ -52,14 +43,35 @@ def page_text(app) -> str:
     return " ".join(parts)
 
 
-pytestmark = pytest.mark.skipif(
-    not _artefacts_present(),
-    reason="pipeline artefacts missing: run src.prepare, src.train and src.evaluate first",
-)
+@pytest.fixture(scope="module")
+def artifact_config(cfg, tmp_path_factory):
+    """Build isolated artifacts so a clean checkout exercises the real page."""
+    import copy
+    import yaml
+    from src.prepare import main as prepare
+    from src.training import train_and_evaluate
+    from src.evaluate import evaluate
+
+    local = copy.deepcopy(cfg)
+    root = tmp_path_factory.mktemp("streamlit-runtime")
+    for key, value in local["paths"].items():
+        local["paths"][key] = str(root / value)
+    local["data_source"].update(mode="synthetic", synthetic_n_orders=1800, synthetic_seed=5)
+    local["modeling"]["random_forest"].update(n_estimators=20, max_depth=[6], min_samples_leaf=[2], n_jobs=1)
+    local["modeling"]["logistic_regression"]["C"] = [1.0]
+    local["evaluation"]["bootstrap_n"] = 10
+    config_path = root / "config.yaml"
+    config_path.write_text(yaml.safe_dump(local))
+    prepare(["--config", str(config_path)])
+    train_and_evaluate(local, cv_splits=2)
+    evaluate(local)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("PROFAST_CONFIG", str(config_path))
+        yield local
 
 
 @pytest.fixture(scope="module")
-def app():
+def app(artifact_config):
     at = AppTest.from_file(str(APP_PATH), default_timeout=RUN_TIMEOUT)
     at.run()
     return at
@@ -69,9 +81,9 @@ def test_the_app_starts_without_raising(app):
     assert not app.exception, [str(e) for e in app.exception]
 
 
-def test_the_data_source_is_declared_before_any_number_is_shown(app):
+def test_the_data_source_is_declared_before_any_number_is_shown(app, artifact_config):
     """The synthetic banner (or the real-data notice) must be present."""
-    reports = resolve({"paths": {"reports_dir": "reports"}}, "paths", "reports_dir")
+    reports = resolve(artifact_config, "paths", "reports_dir")
     summary = json.loads((reports / "evaluation_summary.json").read_text(encoding="utf-8"))
     synthetic = str(summary["data_source"]["kind"]).lower() != "olist"
 
@@ -93,21 +105,18 @@ def test_both_tab_titles_and_the_scoring_form_exist(app):
     assert len(app.selectbox) == len(CATEGORICAL_FEATURES)
 
 
-def test_pressing_score_produces_a_probability_and_a_cost_comparison(app):
-    """The end-to-end user journey, driven by the widget API."""
+def test_pressing_score_displays_risk_without_probability_or_cost_advice(app):
     button = [b for b in app.button if "Score" in b.label]
-    assert button, "the 'Score this order' submit button is missing"
+    assert button
     button[0].click().run()
-
     assert not app.exception, [str(e) for e in app.exception]
-    values = [metric.value for metric in app.metric]
-    assert any("%" in value for value in values), f"no probability metric was rendered: {values}"
+    assert any("uncalibrated" in metric.label.lower() for metric in app.metric)
+    assert not any("probability" in metric.label.lower() for metric in app.metric)
     assert any("threshold" in metric.label.lower() for metric in app.metric)
-
     text = page_text(app).lower()
-    assert "expected cost" in text
-    assert "break-even" in text
-    assert "ignore the risk" in text and "flag for proactive contact" in text
+    assert "does not mean an 80%" in text
+    assert "expected cost per order" not in text
+    assert "recommends proactive contact" not in text
 
 
 def test_the_performance_tab_shows_metric_rows_with_confidence_intervals(app):
@@ -121,12 +130,12 @@ def test_the_performance_tab_shows_metric_rows_with_confidence_intervals(app):
     assert first["ci_high"].notna().any()
 
 
-def test_every_figure_referenced_by_the_summary_exists_on_disk(app):
-    reports = resolve({"paths": {"reports_dir": "reports"}}, "paths", "reports_dir")
+def test_every_figure_referenced_by_the_summary_exists_on_disk(app, artifact_config):
+    reports = resolve(artifact_config, "paths", "reports_dir")
     summary = json.loads((reports / "evaluation_summary.json").read_text(encoding="utf-8"))
     figures = summary.get("figures", {})
     assert figures, "the evaluation summary lists no figures"
-    missing = [name for name, path in figures.items() if not Path(path).exists()]
+    missing = [name for name, path in figures.items() if not (reports / path).exists()]
     assert not missing, f"figures listed in the summary but absent: {missing}"
 
 

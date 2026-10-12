@@ -1,4 +1,4 @@
-"""Customer-facing demo: score a single order at booking time.
+"""Research demo: score a single order at booking time.
 
 This app is a *demo*, not a product. It reads the artefacts written by
 ``python -m src.prepare`` / ``src.train`` / ``src.evaluate`` and deliberately refuses to
@@ -10,9 +10,7 @@ Design notes worth knowing before changing anything:
 * the decision threshold comes **from the saved model bundle**, never from the UI, so
   what the app shows is exactly what was evaluated;
 * the app never re-trains and never touches the test set to pick anything;
-* the cost arithmetic in the sidebar is an *assumption*, and the app prints the
-  break-even probability it implies, so a reader can disagree with the assumption
-  without having to reverse-engineer it.
+* uncalibrated scores are not presented as probabilities or operational advice.
 
 Run with:
 
@@ -22,6 +20,7 @@ Run with:
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -164,7 +163,7 @@ def flagging_value(
 # ---------------------------------------------------------------------------
 def project_paths() -> Dict[str, Path]:
     """Resolved output directories, read from config/config.yaml (never hard-coded)."""
-    cfg = load_config()
+    cfg = load_config(os.environ.get("PROFAST_CONFIG"))
     return {
         "processed": resolve(cfg, "paths", "processed_dir"),
         "models": resolve(cfg, "paths", "models_dir"),
@@ -291,46 +290,18 @@ def render_provenance_banner(metadata: Mapping[str, Any]) -> None:
         st.success(f"Data source: real Olist CSVs (`{kind}`).", icon="✅")
 
 
-def sidebar_summary(
-    bundle: Mapping[str, Any],
-    metadata: Mapping[str, Any],
-    manifest: Mapping[str, Any],
-) -> Tuple[float, float, float]:
-    """Model provenance + the two cost assumptions. Returns ``(c_fn, c_fp, p_star)``."""
-    cfg = load_config()
-    cost_cfg = cfg["business_case"]
-    c_fn = float(cost_cfg["cost_false_negative"])
-    c_fp = float(cost_cfg["cost_false_positive"])
-
+def sidebar_summary(bundle, metadata, manifest) -> None:
+    """Show provenance, never convert uncalibrated scores into business advice."""
     with st.sidebar:
         st.header("Model")
         st.write(f"**Algorithm:** `{bundle.get('model_name', '?')}`")
-        st.write(f"**Frozen threshold:** `{float(bundle.get('threshold', 0.5)):.4f}`")
+        st.write(f"**Frozen experimental threshold:** `{float(bundle.get('threshold', 0.5)):.4f}`")
         st.write(f"**Training rows:** {int(bundle.get('training_rows', 0)):,}")
         st.write(f"**Trained at (UTC):** {str(bundle.get('trained_at', '?'))[:19]}")
         st.write(f"**Label:** {bundle.get('label_definition', '?')}")
-        fingerprint = str(dict(metadata.get("provenance", {})).get("dataset_fingerprint", "?"))
-        st.caption(f"dataset fingerprint `{fingerprint[:16]}...`")
         st.caption(f"processed sha256 `{str(bundle.get('dataset_sha256', '?'))[:16]}...`")
-
-        st.divider()
-        st.header("Cost assumptions")
-        st.caption(
-            "Placeholders, not measured values. Change them and the break-even "
-            "probability moves - the model does not decide this."
-        )
-        c_fn = float(st.number_input("Cost of a missed delay", min_value=0.0, value=c_fn, step=1.0))
-        c_fp = float(st.number_input("Cost of a false alarm", min_value=0.0, value=c_fp, step=1.0))
-        p_star = break_even_probability(c_fn, c_fp)
-        st.metric("Break-even probability", f"{p_star:.3f}")
-        st.caption(
-            "Flagging beats ignoring only above this probability. With these two costs it "
-            "is `cost_false_positive / (cost_false_positive + cost_false_negative)`, which "
-            "depends only on the costs - never on the model."
-        )
-        git_commit = manifest.get("git", {}).get("commit") or "unknown"
-        st.caption(f"run manifest commit `{git_commit}`")
-    return c_fn, c_fp, p_star
+        st.caption(f"run manifest commit `{manifest.get('git_commit') or 'unknown'}`")
+        st.warning("Uncalibrated risk scores. This prototype does not recommend operational actions.")
 
 
 def order_input_form(
@@ -391,62 +362,31 @@ def order_input_form(
 
 
 
-def render_score(
-    bundle: Mapping[str, Any],
-    values: Mapping[str, Any],
-    c_fn: float,
-    c_fp: float,
-) -> None:
-    """Score one order and explain the decision in cost terms, without inventing detail."""
-    pipeline = bundle["pipeline"]
-    threshold = float(bundle["threshold"])
+def render_score(bundle: Mapping[str, Any], values: Mapping[str, Any]) -> None:
+    """Display a ranking score and the frozen experimental flag."""
     frame = assemble_features(values)
-    probability = float(predict_positive_proba(pipeline, frame[MODEL_FEATURES])[0])
-
+    try:
+        score = float(predict_positive_proba(bundle["pipeline"], frame[MODEL_FEATURES])[0])
+    except (ValueError, TypeError, KeyError) as exc:
+        st.error(f"Unable to score these inputs: {exc}")
+        return
+    threshold = float(bundle["threshold"])
     st.subheader("Prediction")
-    left, middle, right = st.columns(3)
-    left.metric("Probability of a late delivery", f"{probability:.1%}")
-    middle.metric("Risk band", risk_band(probability, threshold))
-    right.metric("Frozen decision threshold", f"{threshold:.3f}")
-    st.progress(min(max(probability, 0.0), 1.0))
-    if probability >= threshold:
-        st.warning(
-            f"Above the frozen threshold ({threshold:.3f}): at these costs the model "
-            "recommends proactive contact.",
-            icon="🚩",
-        )
-    else:
-        st.info(
-            f"Below the frozen threshold ({threshold:.3f}): no action. The threshold was "
-            "chosen on validation data and frozen before the test period was scored.",
-            icon="✅",
-        )
-
-    decision = flagging_value(probability, c_fn, c_fp)
-    st.markdown(
-        "**Expected cost per order at these cost assumptions**\n\n"
-        "| action | expected cost |\n| --- | --- |\n"
-        f"| ignore the risk | {format_currency(decision['expected_cost_if_ignore'])} |\n"
-        f"| flag for proactive contact | {format_currency(decision['expected_cost_if_flag'])} |\n\n"
-        f"Break-even probability **{decision['break_even_probability']:.3f}** - "
-        f"recommendation: **{decision['recommendation']}**."
+    left, right = st.columns(2)
+    left.metric("Uncalibrated delay-risk score", f"{score:.3f}")
+    right.metric("Frozen experimental threshold", f"{threshold:.3f}")
+    st.progress(min(max(score, 0.0), 1.0))
+    st.info("Experimental risk flag: " + ("above threshold" if score >= threshold else "below threshold"))
+    st.warning(
+        "This score is not a calibrated probability. A score of 0.8 does not mean an 80% "
+        "chance of delay. The flag is an experimental classification, not advice to contact "
+        "a customer or change a delivery."
     )
     st.caption(
-        "The two expected costs are `p x cost_of_a_missed_delay` and "
-        "`(1 - p) x cost_of_a_false_alarm`. They are assumptions about the business, not "
-        "measurements, which is why the sidebar lets you change them."
+        "The threshold was selected on validation data. Reported bootstrap intervals describe "
+        "aggregate test metrics, not uncertainty for this individual order. Changing an input "
+        "does not establish a causal effect."
     )
-    with st.expander("What this page does not claim"):
-        st.markdown(
-            "- **No per-order reason codes.** The fitted pipeline is an ensemble that offers "
-            "no defensible per-order explanation, so none is fabricated here. Global "
-            "permutation importance is in the *Model performance* tab.\n"
-            "- **No causal claim.** The model says which orders *resemble* late orders in the "
-            "training data. Moving a slider does not cause a delivery outcome.\n"
-            "- **No certainty.** The output is a probability whose uncertainty is quantified "
-            "in the reports (bootstrap intervals), not a guarantee."
-        )
-
 
 
 def render_performance_tab(summary: Mapping[str, Any], reports_dir: Path) -> None:
@@ -456,7 +396,7 @@ def render_performance_tab(summary: Mapping[str, Any], reports_dir: Path) -> Non
         return
     metrics = dict(summary.get("test_metrics", {}))
     intervals = dict(summary.get("bootstrap_95", {}))
-    st.subheader("Test period - scored once, after everything was frozen")
+    st.subheader("Retrospective test period - excluded from automated selection")
     rows = []
     for name, value in metrics.items():
         if name in {"threshold", "n", "n_positive", "n_negative"}:
@@ -481,8 +421,8 @@ def render_performance_tab(summary: Mapping[str, Any], reports_dir: Path) -> Non
         "`n_effective`."
     )
     st.caption(
-        "ROC-AUC is optimistic under class imbalance and is reported for completeness; "
-        "average precision (the PR curve area) is the metric used for model selection."
+        "ROC-AUC describes ranking; precision-recall metrics reveal rare-delay detection. "
+        "Average precision is the selection metric; it is not trapezoidal PR-AUC."
     )
 
     cost = dict(summary.get("cost", {}))
@@ -491,7 +431,7 @@ def render_performance_tab(summary: Mapping[str, Any], reports_dir: Path) -> Non
         half = dict(cost.get("at_threshold_0_5", {}))
         assumptions = dict(cost.get("assumptions", {}))
         st.markdown(
-            "**Cost per 1 000 orders** - at the frozen threshold "
+            "**Hypothetical error penalty per 1 000 orders** - at the frozen threshold "
             f"{float(frozen.get('cost_per_1000_orders', float('nan'))):,.2f}; at 0.5 "
             f"{float(half.get('cost_per_1000_orders', float('nan'))):,.2f}; flagging nothing "
             f"{float(frozen.get('cost_if_never_flagging_per_1000', float('nan'))):,.2f}. "
@@ -517,6 +457,8 @@ def render_performance_tab(summary: Mapping[str, Any], reports_dir: Path) -> Non
         st.subheader("Figures")
         for name, path in figures.items():
             figure_path = Path(str(path))
+            if not figure_path.is_absolute():
+                figure_path = reports_dir / figure_path
             if figure_path.exists():
                 st.image(str(figure_path), caption=name.replace("_", " "), width="stretch")
 
@@ -564,7 +506,7 @@ def render_provenance_tab(
     if manifest:
         st.subheader("Run manifest")
         st.json({
-            "git": manifest.get("git"),
+            "git_commit": manifest.get("git_commit"),
             "environment": manifest.get("environment"),
             "split": manifest.get("split"),
             "random_seed": manifest.get("random_seed"),
@@ -606,12 +548,12 @@ def main() -> None:
         )
         st.stop()
 
-    c_fn, c_fp, p_star = sidebar_summary(bundle, metadata, manifest)
+    sidebar_summary(bundle, metadata, manifest)
 
-    prepared = load_table(str(paths["processed"] / "orders_prepared.csv"), tuple(MODEL_FEATURES))
+    prepared = load_table(str(paths["models"] / "training_inputs.csv"), tuple(MODEL_FEATURES))
     if prepared is None:
         st.warning(
-            "`data/processed/orders_prepared.csv` is missing, so input ranges fall back to "
+            "`models/training_inputs.csv` is missing, so input ranges fall back to "
             "generic values. Run `python -m src.prepare` for data-driven ranges.",
             icon="ℹ️",
         )
@@ -643,7 +585,7 @@ def main() -> None:
     with tab_score:
         submitted = order_input_form(specs, options, st.session_state["prefill"])
         if submitted is not None:
-            render_score(bundle, submitted, c_fn, c_fp)
+            render_score(bundle, submitted)
         else:
             st.info(
                 "Set the booking-time inputs and press **Score this order**. The sliders "
@@ -652,8 +594,7 @@ def main() -> None:
                 icon="👉",
             )
         st.caption(
-            "Reminder: a probability is not a decision. The decision also needs the two cost "
-            "numbers in the sidebar, which the business - not the model - owns."
+            "This demo uses uncalibrated risk scores and provides no operational recommendation."
         )
     with tab_performance:
         render_performance_tab(summary, paths["reports"])

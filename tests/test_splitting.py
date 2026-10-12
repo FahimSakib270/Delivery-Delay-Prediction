@@ -105,3 +105,48 @@ def test_split_and_filter_reports_every_fold(prepared, cfg):
         assert info["folds_after_maturity"][name]["n_rows"] == len(frames[name])
         assert 0.0 <= info["folds_after_maturity"][name]["late_rate"] <= 1.0
     assert info["label_maturity"]["enabled"] is True
+
+
+def test_same_timestamp_groups_never_cross_outer_boundaries(cfg):
+    timestamps = pd.Series(pd.date_range("2018-01-01", periods=12, freq="D")).repeat(3).reset_index(drop=True)
+    frame = pd.DataFrame({"order_purchase_timestamp": timestamps, TARGET_COLUMN: [0, 1, 0] * 12})
+    frames, info = chronological_split(frame, cfg)
+    assert not any(info["boundary_ties"].values())
+    groups = [set(frames[name].order_purchase_timestamp) for name in SPLIT_NAMES]
+    assert groups[0].isdisjoint(groups[1]) and groups[1].isdisjoint(groups[2])
+    assert sum(map(len, frames.values())) == len(frame)
+
+
+def test_maturity_uses_actual_delivery_time_not_midnight(cfg):
+    horizon = pd.Timestamp("2018-02-01 12:00")
+    frames = {
+        "train": pd.DataFrame({"order_purchase_timestamp": [horizon - pd.Timedelta(days=2)] * 2,
+            "delivered_date": [horizon.normalize()] * 2,
+            "order_delivered_customer_date": [horizon - pd.Timedelta(hours=1), horizon + pd.Timedelta(hours=1)]}),
+        "validation": pd.DataFrame({"order_purchase_timestamp": [horizon],
+            "order_delivered_customer_date": [horizon + pd.Timedelta(hours=2)]}),
+        "test": pd.DataFrame({"order_purchase_timestamp": [horizon + pd.Timedelta(days=2)],
+            "order_delivered_customer_date": [horizon + pd.Timedelta(days=3)]}),
+    }
+    filtered, info = apply_label_maturity(frames, cfg)
+    assert len(filtered["train"]) == 1
+    assert filtered["train"].order_delivered_customer_date.iloc[0] < horizon
+    assert info["train"]["n_dropped"] == 1
+
+
+def test_inner_cv_excludes_unobserved_labels_and_shared_booking_instants():
+    from src.splitting import mature_cv_splits
+    booking = pd.Series(pd.date_range("2018-01-01 12:00", periods=40, freq="D")).repeat(2).reset_index(drop=True)
+    delivery = booking + pd.Timedelta(hours=2)
+    delivery.iloc[0] = booking.iloc[-1] + pd.Timedelta(days=10)
+    frame = pd.DataFrame({"order_purchase_timestamp": booking,
+                          "order_delivered_customer_date": delivery,
+                          TARGET_COLUMN: [0, 1] * 40})
+    folds, audit = mature_cv_splits(frame, n_splits=3)
+    for (train, val), record in zip(folds, audit):
+        horizon = booking.iloc[val].min()
+        assert (delivery.iloc[train] < horizon).all()
+        assert booking.iloc[train].max() < horizon
+        assert 0 not in train
+        assert set(booking.iloc[train]).isdisjoint(set(booking.iloc[val]))
+        assert record["dropped_immature"] >= 1
