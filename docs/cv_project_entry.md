@@ -1,34 +1,28 @@
-# CV project entry
+# Portfolio project description
 
-**Delivery-delay prediction at booking time — Python, scikit-learn, pandas, Streamlit**
+**Delivery-delay prediction — Python, scikit-learn, pandas, Streamlit**
 
-- Built an order-level ML pipeline using public Olist e-commerce data, with audited
-  booking-time features and training-fitted preprocessing.
-- Compared a majority-class baseline, logistic regression and random forest using
-  chronological splits and delivery-time label-maturity checks inside cross-validation.
-- Evaluated ranking, classification errors, calibration and subgroup performance;
-  built a local risk-score demo and documented limitations and reproducible exploratory analyses.
+- Built an order-level pipeline using public Olist e-commerce data and booking-time features.
+- Compared a baseline, logistic regression and random forest with chronological
+  evaluation, training-fitted preprocessing and delivery-time label-maturity checks.
+- Built a local risk-score demo and analyzed errors, calibration and subgroup performance.
 
-## Optional measured result
+## Short description
 
-Use the current `reports/results_summary.md` if adding a metric. Include the dataset,
-late-order prevalence and retrospective chronological evaluation context. Do not use
-accuracy alone, describe an uncalibrated score as a probability, or claim publication,
-novel algorithms, production integration, measured profit or deployment readiness.
+I built a delivery-delay prediction prototype inspired by my ProFast undergraduate
+project. On a retrospective chronological Olist test period, logistic regression
+achieved average precision of 0.0711 against a late-order prevalence of 0.0428.
+Ranking performance was modest, and the chosen threshold cost more than flagging
+nothing under the assumed error penalties. The project has not been validated for
+Bangladesh couriers or live operations.
 
-## Professor-facing description
+See [generated results](../reports/results_summary.md) for the full evaluation.
+Scores are uncalibrated; hypothetical costs do not show measured profit.
 
-I developed a delivery-delay prediction prototype inspired by my ProFast undergraduate
-package-management system. Using public Brazilian marketplace data, I compared simple
-models under temporal evaluation with observable-label checks and investigated errors
-and calibration. The model has limited retrospective ranking performance. The useful
-outcome is a reproducible analysis of the model's limitations and of simple candidate
-rules that need further validation. It has not been validated on Bangladesh operations.
+## Interview points
 
-## Three points to explain in an interview
-
-1. Delivery outcomes create the label but never enter the model as features.
-2. Chronological booking order alone is insufficient: a fold's training outcomes must
-   already have been observed when its validation period begins.
-3. A model score, a calibrated probability, and an operational decision are different;
-   hypothetical error costs do not prove that an intervention will improve deliveries.
+1. Delivery outcomes define labels but never enter the model as features.
+2. Chronological splits also need label-maturity checks: training deliveries must
+   be known before validation starts, including inside cross-validation.
+3. Risk scores, calibrated probabilities and operational decisions have different
+   meanings. Any proposed intervention needs further validation.
